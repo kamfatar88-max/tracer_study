@@ -8,11 +8,11 @@
   <!-- CSS -->
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       background: #f8f9fa;
       color: #333;
       margin: 0;
-      padding: 20px;
+      padding: 0;
     }
     .container {
       max-width: 1200px;
@@ -28,7 +28,7 @@
       text-align: center;
       padding: 20px;
     }
-    header h1 { margin: 0; font-size: 1.8em; }
+    header h1 { margin: 0; font-size: 1.5em; }
     header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
 
     .stats {
@@ -74,13 +74,9 @@
       color: white;
       font-size: 0.9em;
     }
-
-    @media (max-width: 768px) {
-      .stats { flex-direction: column; }
-    }
   </style>
 
-  <!-- Libraries - URL TANPA SPASI -->
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -88,7 +84,7 @@
 <body>
   <div class="container">
     <header>
-      <h1>&#x1f4ca; Tracer Study Alumni</h1>
+      <h1>📊 Tracer Study Alumni</h1>
       <p>Fakultas Ekonomi dan Bisnis Islam - UINSI Samarinda</p>
     </header>
 
@@ -119,8 +115,8 @@
   </div>
 
   <script>
-    // &#x2705; URL CSV yang benar
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ycDLgcV1Jz0RCR37e9AVpcm9teWX4jb5EQB9KflCiFc/pub?gid=0&single=true&output=csv';
+    // Gunakan proxy Apps Script Anda
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbz5yJd_qtj0tQWQrVuS4nh01rAXwI8_z-I6uTyHm20wD-jBnX0ZcayaJspMt8COwmbB5A/exec';
 
     const kotaKoordinat = {
       "Jakarta": [-6.2088, 106.8456],
@@ -141,32 +137,21 @@
       try {
         const res = await fetch(SHEET_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        
-        // Parse CSV
-        Papa.parse(text, {
+        const csvText = await res.text();
+
+        Papa.parse(csvText, {
           header: true,
-          complete: function(results) {
-            data = results.data.filter(r => r['Nama'] && r['Tahun Lulus']);
-            data.forEach(r => {
-              r['Tahun Lulus'] = parseInt(r['Tahun Lulus']) || 0;
-              r['Gaji (Rp)'] = parseFloat(r['Gaji (Rp)']) || 0;
-              r['Waktu Tunggu (bln)'] = parseFloat(r['Waktu Tunggu (bln)']) || 0;
-            });
+          complete: (results) => {
+            data = results.data.filter(r => r['Nama']);
             updateStats();
             renderCharts();
             renderMap();
             document.getElementById('loading').style.display = 'none';
             document.getElementById('stats').style.display = 'flex';
-          },
-          error: function(error) {
-            console.error("PapaParse error:", error);
-            document.getElementById('loading').innerHTML = "Gagal memproses data CSV.";
           }
         });
       } catch (e) {
-        console.error("Fetch error:", e);
-        document.getElementById('loading').innerHTML = "Gagal memuat data. Cek koneksi atau izin Google Sheet.";
+        document.getElementById('loading').innerHTML = `❌ Gagal muat data: ${e.message}`;
       }
     }
 
@@ -175,12 +160,12 @@
       const kuliah = data.filter(r => r['Status'] === 'Kuliah').length;
       const nganggur = data.filter(r => r['Status'] === 'Pengangguran').length;
       const avgGaji = data.filter(r => r['Status'] === 'Bekerja')
-                           .reduce((a, b) => a + b['Gaji (Rp)'], 0) / (kerja || 1);
+                           .reduce((a, b) => a + (parseFloat(b['Gaji (Rp)']) || 0), 0) / (kerja || 1);
 
       document.getElementById('kerja').textContent = kerja;
       document.getElementById('kuliah').textContent = kuliah;
       document.getElementById('nganggur').textContent = nganggur;
-      document.getElementById('gaji').textContent = new Intl.NumberFormat('id-ID').format(avgGaji);
+      document.getElementById('gaji').textContent = new Intl.NumberFormat('id-ID').format(avgGaji || 0);
     }
 
     function renderCharts() {
@@ -195,17 +180,13 @@
         type: 'pie',
         data: {
           labels: Object.keys(statusCounts),
-          datasets: [{
-            data: Object.values(statusCounts),
-            backgroundColor: ['#2c7bb6', '#00a651', '#d7191c', '#fdae61']
-          }]
+          datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#2c7bb6', '#00a651', '#d7191c', '#fdae61'] }]
         },
         options: { responsive: true, plugins: { title: { display: true, text: 'Distribusi Status Alumni' } } }
       });
 
       const tahunCounts = data.reduce((acc, r) => {
-        const tahun = r['Tahun Lulus'];
-        acc[tahun] = (acc[tahun] || 0) + 1;
+        acc[r['Tahun Lulus']] = (acc[r['Tahun Lulus']] || 0) + 1;
         return acc;
       }, {});
 
@@ -215,11 +196,7 @@
         type: 'bar',
         data: {
           labels: Object.keys(tahunCounts).sort(),
-          datasets: [{
-            label: 'Jumlah Alumni',
-            data: Object.values(tahunCounts),
-            backgroundColor: '#2c7bb6'
-          }]
+          datasets: [{ label: 'Jumlah Alumni', data: Object.values(tahunCounts), backgroundColor: '#2c7bb6' }]
         },
         options: { responsive: true, plugins: { title: { display: true, text: 'Alumni per Tahun Lulus' } } }
       });
@@ -230,7 +207,6 @@
         map = L.map('map').setView([-2.5, 118], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
       }
-
       map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
 
       const bekerja = data.filter(r => r['Status'] === 'Bekerja' && r['Kota']);
@@ -238,26 +214,19 @@
         const coords = kotaKoordinat[r['Kota']];
         if (coords) {
           L.marker(coords).addTo(map)
-            .bindPopup(`<b>${r['Nama']}</b><br>${r['Sektor Pekerjaan']} | Rp ${new Intl.NumberFormat('id-ID').format(r['Gaji (Rp)'])}`);
+            .bindPopup(`<b>${r['Nama']}</b><br>${r['Sektor Pekerjaan']} | Rp ${new Intl.NumberFormat('id-ID').format(r['Gaji (Rp)'] || 0)}`);
         }
       });
     }
 
-    // &#x2705; Muat PapaParse tanpa spasi
     if (typeof Papa === 'undefined') {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js';
       script.onload = loadData;
-      script.onerror = () => {
-        document.getElementById('loading').innerHTML = "Gagal memuat PapaParse. Cek koneksi internet.";
-      };
       document.head.appendChild(script);
     } else {
       loadData();
     }
-
-    // Refresh tiap 5 menit
-    setInterval(loadData, 300000);
   </script>
 </body>
 </html>

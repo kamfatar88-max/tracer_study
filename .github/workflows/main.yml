@@ -2,12 +2,11 @@ name: Deploy Tracer Study to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # Akan jalan saat push ke branch main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout kode
         uses: actions/checkout@v4

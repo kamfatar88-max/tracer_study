@@ -90,7 +90,7 @@
     }
   </style>
 
-  <!-- Libraries - TANPA SPASI -->
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -146,9 +146,8 @@
   </div>
 
   <script>
-    // 🔗 Gunakan URL CSV Publik (langsung dari Google Sheet)
-    // Alternatif jika Apps Script bermasalah
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1F8oq9G-DWYFZCvh3Z5M1OLk-1wpT7b9B2aR_o8jZnW8/gviz/tq?tqx=out:csv&sheet=Sheet1'; // tanpa spasi!';';
+    // 🔗 URL Publik Google Sheets (TANPA APPS SCRIPT)
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1F8oq9G-DWYFZCvh3Z5M1OLk-1wpT7b9B2aR_o8jZnW8/gviz/tq?tqx=out:csv&sheet=Sheet1';
 
     let data = [];
     let chartProdi, chartMasa, chartTunggu, chartKesesuaian, chartJangkauan;
@@ -167,17 +166,24 @@
       try {
         const res = await fetch(SHEET_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        const csvText = await res.text();
+        let csvText = await res.text();
 
-        // Hilangkan wrapper jika ada (Google Sheets GViz)
-        const cleanText = csvText.replace(/.*?(\[.*\])/, '$1') // jika format JSON
-          .replace(/[\r\n]/g, '') || csvText;
+        // Bersihkan wrapper jika ada (Google Sheets GViz)
+        csvText = csvText.replace(/^[^{]*|[^}]*$/g, '').trim();
+        if (csvText.startsWith('{')) {
+          try {
+            const json = JSON.parse(csvText);
+            csvText = atob(json.table.csvEncoded).replace(/\n/g, '\r\n');
+          } catch (e) {
+            console.warn("Gagal parse JSON, gunakan CSV mentah");
+          }
+        }
 
-        Papa.parse(cleanText, {
+        Papa.parse(csvText, {
           header: true,
           skipEmptyLines: true,
           complete: function(results) {
-            // Mapping data
+            // Mapping data dari sheet
             data = results.data.map(r => ({
               nama: r['Nama Lengkap'],
               tahunMasuk: parseInt(r['Tahun Masuk']) || 0,
@@ -281,10 +287,10 @@
       if (chartProdi) chartProdi.destroy();
       chartProdi = new Chart(ctx, {
         type: 'pie',
-        data: {
+         {
           labels: labels,
           datasets: [{
-            data: values,
+             values,
             backgroundColor: ['#2c7bb6', '#00a651', '#fdae61']
           }]
         },
@@ -315,11 +321,11 @@
       if (chartMasa) chartMasa.destroy();
       chartMasa = new Chart(ctx, {
         type: 'bar',
-        data: {
+         {
           labels: masaLabels,
           datasets: [{
             label: 'Jumlah Alumni',
-            data: masaData,
+             masaData,
             backgroundColor: '#2c7bb6'
           }]
         },
@@ -345,11 +351,11 @@
       if (chartTunggu) chartTunggu.destroy();
       chartTunggu = new Chart(ctx, {
         type: 'bar',
-        data: {
+         {
           labels: waktuLabels,
           datasets: [{
             label: 'Jumlah Alumni',
-            data: waktuData,
+             waktuData,
             backgroundColor: '#00a651'
           }]
         },
@@ -376,10 +382,10 @@
       if (chartKesesuaian) chartKesesuaian.destroy();
       chartKesesuaian = new Chart(ctx, {
         type: 'pie',
-        data: {
+         {
           labels: ['Sesuai Bidang', 'Tidak Sesuai'],
           datasets: [{
-            data: [sesuai, tidakSesuai],
+             [sesuai, tidakSesuai],
             backgroundColor: ['#2c7bb6', '#d7191c']
           }]
         },
@@ -404,10 +410,10 @@
       if (chartJangkauan) chartJangkauan.destroy();
       chartJangkauan = new Chart(ctx, {
         type: 'doughnut',
-        data: {
+         {
           labels: Object.keys(jangkauan),
           datasets: [{
-            data: Object.values(jangkauan),
+             Object.values(jangkauan),
             backgroundColor: ['#2c7bb6', '#00a651', '#fdae61', '#d7191c']
           }]
         },
@@ -439,21 +445,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

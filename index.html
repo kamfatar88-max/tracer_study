@@ -90,24 +90,38 @@
     }
   </style>
 
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js  "></script>
+  <!-- Libraries - TANPA SPASI -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>📊 TRACER STUDY ALUMNI</h1>
-      <p>FAKULTAS EKONOMI DAN BISNIS ISLAM - UINSI SAMARINDA</p>
+      <h1>📊 Tracer Study Alumni</h1>
+      <p>Fakultas Ekonomi dan Bisnis Islam - UINSI Samarinda</p>
     </header>
 
     <div id="loading" class="loading">Memuat data alumni...</div>
     <div id="error" class="error" style="display: none;"></div>
 
+    <!-- Statistik Utama -->
     <div class="stats" id="stats" style="display: none;">
+      <div class="stat-card"><h3>Total Alumni</h3><p id="total-alumni">-</p></div>
       <div class="stat-card"><h3>Rata² Masa Studi</h3><p id="masa-studi">-</p></div>
       <div class="stat-card"><h3>Waktu Tunggu Kerja</h3><p id="waktu-tunggu">-</p></div>
       <div class="stat-card"><h3>Kesesuaian Bidang</h3><p id="kesesuaian">-</p></div>
+    </div>
+
+    <!-- Statistik Program Studi -->
+    <div class="stats" id="stats-prodi" style="display: none;">
+      <div class="stat-card"><h3>Ekonomi Syariah</h3><p id="prodi-es">-</p></div>
+      <div class="stat-card"><h3>Perbankan Syariah</h3><p id="prodi-ps">-</p></div>
+      <div class="stat-card"><h3>Manajemen Bisnis Syariah</h3><p id="prodi-mbs">-</p></div>
       <div class="stat-card"><h3>Jangkauan Kerja</h3><p id="jangkauan">-</p></div>
+    </div>
+
+    <!-- Grafik -->
+    <div class="chart-container">
+      <canvas id="chartProdi"></canvas>
     </div>
 
     <div class="chart-container">
@@ -132,11 +146,12 @@
   </div>
 
   <script>
-    // 🔗 URL Proxy Google Apps Script Anda
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzhKYauO6j9PsMv5w1cFmoHizywql6rJ9wzjNIJOnbMgbOaWBeSY6EPnfK3swV7ofDOUw/exec';
+    // 🔗 Gunakan URL CSV Publik (langsung dari Google Sheet)
+    // Alternatif jika Apps Script bermasalah
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ycDLgcV1Jz0RCR37e9AVpcm9teWX4jb5EQB9KflCiFc/gviz/tq?tqx=out:csv&sheet=Sheet1';
 
     let data = [];
-    let chartMasa, chartTunggu, chartKesesuaian, chartJangkauan;
+    let chartProdi, chartMasa, chartTunggu, chartKesesuaian, chartJangkauan;
 
     // Konversi "6 bulan" → 6
     function parseBulan(value) {
@@ -154,10 +169,15 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const csvText = await res.text();
 
-        Papa.parse(csvText, {
+        // Hilangkan wrapper jika ada (Google Sheets GViz)
+        const cleanText = csvText.replace(/.*?(\[.*\])/, '$1') // jika format JSON
+          .replace(/[\r\n]/g, '') || csvText;
+
+        Papa.parse(cleanText, {
           header: true,
           skipEmptyLines: true,
           complete: function(results) {
+            // Mapping data
             data = results.data.map(r => ({
               nama: r['Nama Lengkap'],
               tahunMasuk: parseInt(r['Tahun Masuk']) || 0,
@@ -168,7 +188,7 @@
               gaji: parseFloat(r['Gaji Bulanan (Rp)']) || 0,
               kota: r['Kota Tempat Bekerja / Kuliah'],
               waktuTunggu: parseBulan(r['Waktu Tunggu Kerja (bulan)']),
-              bidangSaatIni: r['Bidang Keahlian Saat Ini'],
+              bidangSaatIni: r['Bidang Keahlian Saat Ini'] || '',
               lokasiKerja: r['Lokasi Kerja'] || 'Lokal'
             })).filter(r => r.nama && r.nama.trim() !== '');
 
@@ -180,9 +200,11 @@
 
             console.log("Data berhasil dimuat:", data);
             updateStats();
+            updateStatsProdi();
             renderCharts();
             loading.style.display = 'none';
             document.getElementById('stats').style.display = 'flex';
+            document.getElementById('stats-prodi').style.display = 'flex';
           },
           error: function(err) {
             errorDiv.innerHTML = `❌ Gagal parsing CSV: ${err}`;
@@ -190,13 +212,13 @@
           }
         });
       } catch (e) {
-        errorDiv.innerHTML = `❌ Gagal memuat  <b>${e.message}</b>`;
+        errorDiv.innerHTML = `❌ Gagal memuat data: <b>${e.message}</b>`;
         errorDiv.style.display = 'block';
       }
     }
 
+    // Statistik Umum
     function updateStats() {
-      // 1. Rata-rata Masa Studi
       const masaStudi = data
         .filter(r => r.tahunMasuk > 0 && r.tahunLulus > 0)
         .map(r => r.tahunLulus - r.tahunMasuk);
@@ -204,7 +226,6 @@
         ? (masaStudi.reduce((a, b) => a + b, 0) / masaStudi.length).toFixed(1) 
         : 'N/A';
 
-      // 2. Waktu Tunggu Kerja Rata-rata
       const waktuTunggu = data
         .filter(r => r.status === 'Bekerja')
         .map(r => r.waktuTunggu);
@@ -212,37 +233,74 @@
         ? Math.round(waktuTunggu.reduce((a, b) => a + b, 0) / waktuTunggu.length) 
         : 0;
 
-      // 3. Kesesuaian Bidang Kerja
-      const kesesuaian = data.filter(r => 
-        r.status === 'Bekerja' && 
-        r.bidangSaatIni && 
-        (r.bidangSaatIni.toLowerCase().includes('ekonomi') || 
-         r.bidangSaatIni.toLowerCase().includes('bisnis') || 
-         r.bidangSaatIni.toLowerCase().includes('islam') ||
-         r.bidangSaatIni.toLowerCase().includes('keuangan'))
-      ).length;
-      const totalBekerja = data.filter(r => r.status === 'Bekerja').length;
-      const persentaseKesesuaian = totalBekerja > 0 
-        ? Math.round((kesesuaian / totalBekerja) * 100) 
-        : 0;
+      document.getElementById('masa-studi').textContent = rataMasaStudi + " tahun";
+      document.getElementById('waktu-tunggu').textContent = rataWaktuTunggu + " bulan";
+    }
 
-      // 4. Jangkauan Operasi Kerja
+    // Statistik Program Studi
+    function updateStatsProdi() {
+      const total = data.length;
+      const es = data.filter(r => r.programStudi === 'Ekonomi Syariah').length;
+      const ps = data.filter(r => r.programStudi === 'Perbankan Syariah').length;
+      const mbs = data.filter(r => r.programStudi === 'Manajemen Bisnis Syariah').length;
+
+      document.getElementById('total-alumni').textContent = total;
+      document.getElementById('prodi-es').textContent = `${es} (${Math.round((es/total)*100)}%)`;
+      document.getElementById('prodi-ps').textContent = `${ps} (${Math.round((ps/total)*100)}%)`;
+      document.getElementById('prodi-mbs').textContent = `${mbs} (${Math.round((mbs/total)*100)}%)`;
+
+      // Jangkauan Kerja
       const jangkauan = data.filter(r => r.status === 'Bekerja')
         .reduce((acc, r) => {
           const lokasi = r.lokasiKerja || 'Lokal';
           acc[lokasi] = (acc[lokasi] || 0) + 1;
           return acc;
         }, {});
-
-      // Update tampilan
-      document.getElementById('masa-studi').textContent = rataMasaStudi + " tahun";
-      document.getElementById('waktu-tunggu').textContent = rataWaktuTunggu + " bulan";
-      document.getElementById('kesesuaian').textContent = persentaseKesesuaian + "%";
       document.getElementById('jangkauan').textContent = Object.keys(jangkauan).join(", ");
     }
 
+    // Render Semua Grafik
     function renderCharts() {
-      // Masa Studi
+      renderChartProdi();
+      renderChartMasaStudi();
+      renderChartWaktuTunggu();
+      renderChartKesesuaian();
+      renderChartJangkauan();
+    }
+
+    function renderChartProdi() {
+      const counts = {
+        'Ekonomi Syariah': data.filter(r => r.programStudi === 'Ekonomi Syariah').length,
+        'Perbankan Syariah': data.filter(r => r.programStudi === 'Perbankan Syariah').length,
+        'Manajemen Bisnis Syariah': data.filter(r => r.programStudi === 'Manajemen Bisnis Syariah').length
+      };
+      const labels = Object.keys(counts).filter(k => counts[k] > 0);
+      const values = labels.map(k => counts[k]);
+
+      const ctx = document.getElementById('chartProdi').getContext('2d');
+      if (chartProdi) chartProdi.destroy();
+      chartProdi = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: ['#2c7bb6', '#00a651', '#fdae61']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Distribusi Alumni per Program Studi'
+            }
+          }
+        }
+      });
+    }
+
+    function renderChartMasaStudi() {
       const masaBins = [0, 3.5, 4, 5, 6, 7, 10];
       const masaLabels = ['<3.5', '3.5-4', '4-5', '5-6', '6-7', '>7'];
       const masaData = Array(masaLabels.length).fill(0);
@@ -253,8 +311,9 @@
         if (idx >= 0) masaData[idx]++;
       });
 
-      const ctx1 = document.getElementById('chartMasaStudi').getContext('2d');
-      chartMasa = new Chart(ctx1, {
+      const ctx = document.getElementById('chartMasaStudi').getContext('2d');
+      if (chartMasa) chartMasa.destroy();
+      chartMasa = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: masaLabels,
@@ -264,10 +323,16 @@
             backgroundColor: '#2c7bb6'
           }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Distribusi Masa Studi (Tahun)' } } }
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Distribusi Masa Studi (Tahun)' }
+          }
+        }
       });
+    }
 
-      // Waktu Tunggu Kerja
+    function renderChartWaktuTunggu() {
       const waktuBins = [0, 1, 3, 6, 12, 24, 60, 120];
       const waktuLabels = ['<1', '1-3', '3-6', '6-12', '1-2 th', '2-5 th', '>5 th'];
       const waktuData = Array(waktuLabels.length).fill(0);
@@ -276,8 +341,9 @@
         if (idx >= 0) waktuData[idx]++;
       });
 
-      const ctx2 = document.getElementById('chartWaktuTunggu').getContext('2d');
-      chartTunggu = new Chart(ctx2, {
+      const ctx = document.getElementById('chartWaktuTunggu').getContext('2d');
+      if (chartTunggu) chartTunggu.destroy();
+      chartTunggu = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: waktuLabels,
@@ -287,10 +353,16 @@
             backgroundColor: '#00a651'
           }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Waktu Tunggu Kerja Setelah Lulus' } } }
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Waktu Tunggu Kerja Setelah Lulus' }
+          }
+        }
       });
+    }
 
-      // Kesesuaian Bidang
+    function renderChartKesesuaian() {
       const sesuai = data.filter(r => 
         r.status === 'Bekerja' && 
         r.bidangSaatIni && 
@@ -300,8 +372,9 @@
       ).length;
       const tidakSesuai = data.filter(r => r.status === 'Bekerja').length - sesuai;
 
-      const ctx3 = document.getElementById('chartKesesuaian').getContext('2d');
-      chartKesesuaian = new Chart(ctx3, {
+      const ctx = document.getElementById('chartKesesuaian').getContext('2d');
+      if (chartKesesuaian) chartKesesuaian.destroy();
+      chartKesesuaian = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: ['Sesuai Bidang', 'Tidak Sesuai'],
@@ -310,10 +383,16 @@
             backgroundColor: ['#2c7bb6', '#d7191c']
           }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Kesesuaian Bidang Kerja Alumni' } } }
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Kesesuaian Bidang Kerja Alumni' }
+          }
+        }
       });
+    }
 
-      // Jangkauan Kerja
+    function renderChartJangkauan() {
       const jangkauan = data.filter(r => r.status === 'Bekerja')
         .reduce((acc, r) => {
           const lokasi = r.lokasiKerja || 'Lokal';
@@ -321,8 +400,9 @@
           return acc;
         }, {});
 
-      const ctx4 = document.getElementById('chartJangkauan').getContext('2d');
-      chartJangkauan = new Chart(ctx4, {
+      const ctx = document.getElementById('chartJangkauan').getContext('2d');
+      if (chartJangkauan) chartJangkauan.destroy();
+      chartJangkauan = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: Object.keys(jangkauan),
@@ -331,14 +411,19 @@
             backgroundColor: ['#2c7bb6', '#00a651', '#fdae61', '#d7191c']
           }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Jangkauan Operasi Kerja Alumni' } } }
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Jangkauan Operasi Kerja Alumni' }
+          }
+        }
       });
     }
 
     // Muat PapaParse
     if (typeof Papa === 'undefined') {
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js  ';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js';
       script.onload = () => {
         console.log("PapaParse dimuat");
         loadData();
@@ -354,7 +439,3 @@
   </script>
 </body>
 </html>
-
-
-
-

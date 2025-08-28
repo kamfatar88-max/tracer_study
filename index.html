@@ -159,7 +159,7 @@
           skipEmptyLines: true,
           complete: function(results) {
             data = results.data.map(r => ({
-              nama: r['Nama Lengkap'],
+              nama: r['Nama'],
               tahunMasuk: parseInt(r['Tahun Masuk']) || 0,
               tahunLulus: parseInt(r['Tahun Lulus']) || 0,
               programStudi: r['Program Studi'],
@@ -354,4 +354,5 @@
   </script>
 </body>
 </html>
+
 

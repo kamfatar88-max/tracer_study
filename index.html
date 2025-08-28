@@ -5,25 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tracer Study FEBI UINSI</title>
 
+  <!-- CSS -->
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; color: #333; margin: 0; padding: 20px; }
-    .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; }
-    header { background: #003366; color: white; text-align: center; padding: 20px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    header {
+      background: #003366;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
     header h1 { margin: 0; font-size: 1.5em; }
     header p { margin: 5px 0 0; font-size: 0.9em; opacity: 0.9; }
-    .stats { display: flex; flex-wrap: wrap; gap: 10px; padding: 20px; background: #f1f5f9; }
-    .stat-card { flex: 1; min-width: 180px; background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 20px;
+      background: #f1f5f9;
+    }
+    .stat-card {
+      flex: 1;
+      min-width: 180px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
     .stat-card h3 { margin: 0; color: #003366; font-size: 1.2em; }
     .stat-card p { margin: 5px 0 0; font-size: 1.4em; font-weight: bold; color: #2c7bb6; }
-    .chart-container canvas { width: 100% !important; height: 400px !important; border-radius: 8px; border: 1px solid #ddd; padding: 20px; }
-    .loading { text-align: center; padding: 40px; font-size: 1.2em; color: #555; }
-    .error { color: #d7191c; font-family: monospace; white-space: pre-wrap; padding: 10px; margin: 10px 20px; background: #f8d7da; border-radius: 8px; }
-    footer { text-align: center; padding: 15px; background: #003366; color: white; font-size: 0.9em; }
-    @media (max-width: 768px) { .stats { flex-direction: column; } }
+
+    .chart-container {
+      padding: 20px;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 400px !important;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 1.2em;
+      color: #555;
+    }
+
+    .error {
+      color: #d7191c;
+      font-family: monospace;
+      white-space: pre-wrap;
+      padding: 10px;
+      margin: 10px 20px;
+      background: #f8d7da;
+      border-radius: 8px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #003366;
+      color: white;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+      .stats { flex-direction: column; }
+    }
   </style>
 
-  <!-- ✅ Libraries - TANPA SPASI -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js  "></script>
 </head>
 <body>
   <div class="container">
@@ -40,6 +108,10 @@
       <div class="stat-card"><h3>Waktu Tunggu Kerja</h3><p id="waktu-tunggu">-</p></div>
       <div class="stat-card"><h3>Kesesuaian Bidang</h3><p id="kesesuaian">-</p></div>
       <div class="stat-card"><h3>Jangkauan Kerja</h3><p id="jangkauan">-</p></div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="chartMasaStudi"></canvas>
     </div>
 
     <div class="chart-container">
@@ -60,12 +132,13 @@
   </div>
 
   <script>
-    // ✅ URL TANPA SPASI
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwO547tvmw7IAFHeOIShYMDYc-oums30SCWy_e2o0Uqmst0tJG5uwdBcfZ4DnERMehe/exec';
+    // 🔗 URL Proxy Google Apps Script Anda
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwO547tvmw7IAFHeOIShYMDYc-oums30SCWy_e2o0Uqmst0tJG5uwdBcfZ4DnERMehe/exec  ';
 
     let data = [];
-    let chartTunggu, chartKesesuaian, chartJangkauan;
+    let chartMasa, chartTunggu, chartKesesuaian, chartJangkauan;
 
+    // Konversi "6 bulan" → 6
     function parseBulan(value) {
       if (!value) return 0;
       const match = value.toString().match(/(\d+)/);
@@ -87,13 +160,16 @@
           complete: function(results) {
             data = results.data.map(r => ({
               nama: r['Nama Lengkap'],
+              tahunMasuk: parseInt(r['Tahun Masuk']) || 0,
               tahunLulus: parseInt(r['Tahun Lulus']) || 0,
               programStudi: r['Program Studi'],
               status: r['Status Saat Ini'],
               sektor: r['Sektor Pekerjaan (jika bekerja)'],
               gaji: parseFloat(r['Gaji Bulanan (Rp)']) || 0,
               kota: r['Kota Tempat Bekerja / Kuliah'],
-              waktuTunggu: parseBulan(r['Waktu Tunggu Kerja (bulan)'])
+              waktuTunggu: parseBulan(r['Waktu Tunggu Kerja (bulan)']),
+              bidangSaatIni: r['Bidang Keahlian Saat Ini'],
+              lokasiKerja: r['Lokasi Kerja'] || 'Lokal'
             })).filter(r => r.nama && r.nama.trim() !== '');
 
             if (data.length === 0) {
@@ -120,66 +196,149 @@
     }
 
     function updateStats() {
-      // Rata-rata Masa Studi (tidak bisa dihitung tanpa Tahun Masuk)
-      document.getElementById('masa-studi').textContent = "Data Tahun Masuk belum tersedia";
+      // 1. Rata-rata Masa Studi
+      const masaStudi = data
+        .filter(r => r.tahunMasuk > 0 && r.tahunLulus > 0)
+        .map(r => r.tahunLulus - r.tahunMasuk);
+      const rataMasaStudi = masaStudi.length > 0 
+        ? (masaStudi.reduce((a, b) => a + b, 0) / masaStudi.length).toFixed(1) 
+        : 'N/A';
 
-      // Waktu Tunggu Kerja Rata-rata
+      // 2. Waktu Tunggu Kerja Rata-rata
       const waktuTunggu = data
         .filter(r => r.status === 'Bekerja')
         .map(r => r.waktuTunggu);
       const rataWaktuTunggu = waktuTunggu.length > 0 
         ? Math.round(waktuTunggu.reduce((a, b) => a + b, 0) / waktuTunggu.length) 
         : 0;
+
+      // 3. Kesesuaian Bidang Kerja
+      const kesesuaian = data.filter(r => 
+        r.status === 'Bekerja' && 
+        r.bidangSaatIni && 
+        (r.bidangSaatIni.toLowerCase().includes('ekonomi') || 
+         r.bidangSaatIni.toLowerCase().includes('bisnis') || 
+         r.bidangSaatIni.toLowerCase().includes('islam') ||
+         r.bidangSaatIni.toLowerCase().includes('keuangan'))
+      ).length;
+      const totalBekerja = data.filter(r => r.status === 'Bekerja').length;
+      const persentaseKesesuaian = totalBekerja > 0 
+        ? Math.round((kesesuaian / totalBekerja) * 100) 
+        : 0;
+
+      // 4. Jangkauan Operasi Kerja
+      const jangkauan = data.filter(r => r.status === 'Bekerja')
+        .reduce((acc, r) => {
+          const lokasi = r.lokasiKerja || 'Lokal';
+          acc[lokasi] = (acc[lokasi] || 0) + 1;
+          return acc;
+        }, {});
+
+      // Update tampilan
+      document.getElementById('masa-studi').textContent = rataMasaStudi + " tahun";
       document.getElementById('waktu-tunggu').textContent = rataWaktuTunggu + " bulan";
-
-      // Kesesuaian Bidang (asumsi semua alumni sesuai bidang, karena tidak ada data bidang saat ini)
-      document.getElementById('kesesuaian').textContent = "N/A";
-
-      // Jangkauan Kerja (asumsi semua lokal, karena tidak ada kolom Lokasi Kerja)
-      document.getElementById('jangkauan').textContent = "Lokal (data belum tersedia)";
+      document.getElementById('kesesuaian').textContent = persentaseKesesuaian + "%";
+      document.getElementById('jangkauan').textContent = Object.keys(jangkauan).join(", ");
     }
 
     function renderCharts() {
+      // Masa Studi
+      const masaBins = [0, 3.5, 4, 5, 6, 7, 10];
+      const masaLabels = ['<3.5', '3.5-4', '4-5', '5-6', '6-7', '>7'];
+      const masaData = Array(masaLabels.length).fill(0);
+      data.forEach(r => {
+        if (r.tahunMasuk <= 0 || r.tahunLulus <= 0) return;
+        const durasi = r.tahunLulus - r.tahunMasuk;
+        const idx = masaBins.findIndex((v, i) => durasi >= v && durasi < (masaBins[i+1] || Infinity)) - 1;
+        if (idx >= 0) masaData[idx]++;
+      });
+
+      const ctx1 = document.getElementById('chartMasaStudi').getContext('2d');
+      chartMasa = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: masaLabels,
+          datasets: [{
+            label: 'Jumlah Alumni',
+            data: masaData,
+            backgroundColor: '#2c7bb6'
+          }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Distribusi Masa Studi (Tahun)' } } }
+      });
+
       // Waktu Tunggu Kerja
-      const waktuBins = [0, 1, 3, 6, 12, 24, 60];
-      const waktuLabels = ['<1', '1-3', '3-6', '6-12', '1-2 th', '>2 th'];
+      const waktuBins = [0, 1, 3, 6, 12, 24, 60, 120];
+      const waktuLabels = ['<1', '1-3', '3-6', '6-12', '1-2 th', '2-5 th', '>5 th'];
       const waktuData = Array(waktuLabels.length).fill(0);
       data.filter(r => r.status === 'Bekerja').forEach(r => {
         const idx = waktuBins.findIndex((v, i) => r.waktuTunggu >= v && r.waktuTunggu < (waktuBins[i+1] || Infinity)) - 1;
         if (idx >= 0) waktuData[idx]++;
       });
 
-      const ctx1 = document.getElementById('chartWaktuTunggu').getContext('2d');
-      chartTunggu = new Chart(ctx1, {
+      const ctx2 = document.getElementById('chartWaktuTunggu').getContext('2d');
+      chartTunggu = new Chart(ctx2, {
         type: 'bar',
         data: {
           labels: waktuLabels,
-          datasets: [{ label: 'Jumlah Alumni', data: waktuData, backgroundColor: '#00a651' }]
+          datasets: [{
+            label: 'Jumlah Alumni',
+            data: waktuData,
+            backgroundColor: '#00a651'
+          }]
         },
         options: { responsive: true, plugins: { title: { display: true, text: 'Waktu Tunggu Kerja Setelah Lulus' } } }
       });
 
-      // Kesesuaian Bidang (placeholder)
-      const ctx2 = document.getElementById('chartKesesuaian').getContext('2d');
-      chartKesesuaian = new Chart(ctx2, {
+      // Kesesuaian Bidang
+      const sesuai = data.filter(r => 
+        r.status === 'Bekerja' && 
+        r.bidangSaatIni && 
+        (r.bidangSaatIni.toLowerCase().includes('ekonomi') || 
+         r.bidangSaatIni.toLowerCase().includes('bisnis') || 
+         r.bidangSaatIni.toLowerCase().includes('islam'))
+      ).length;
+      const tidakSesuai = data.filter(r => r.status === 'Bekerja').length - sesuai;
+
+      const ctx3 = document.getElementById('chartKesesuaian').getContext('2d');
+      chartKesesuaian = new Chart(ctx3, {
         type: 'pie',
-        data: { labels: ['Data Tidak Tersedia'], datasets: [{ data: [1], backgroundColor: ['#ccc'] }] },
+        data: {
+          labels: ['Sesuai Bidang', 'Tidak Sesuai'],
+          datasets: [{
+            data: [sesuai, tidakSesuai],
+            backgroundColor: ['#2c7bb6', '#d7191c']
+          }]
+        },
         options: { responsive: true, plugins: { title: { display: true, text: 'Kesesuaian Bidang Kerja Alumni' } } }
       });
 
-      // Jangkauan Kerja (placeholder)
-      const ctx3 = document.getElementById('chartJangkauan').getContext('2d');
-      chartJangkauan = new Chart(ctx3, {
+      // Jangkauan Kerja
+      const jangkauan = data.filter(r => r.status === 'Bekerja')
+        .reduce((acc, r) => {
+          const lokasi = r.lokasiKerja || 'Lokal';
+          acc[lokasi] = (acc[lokasi] || 0) + 1;
+          return acc;
+        }, {});
+
+      const ctx4 = document.getElementById('chartJangkauan').getContext('2d');
+      chartJangkauan = new Chart(ctx4, {
         type: 'doughnut',
-        data: { labels: ['Lokal'], datasets: [{ data: [1], backgroundColor: ['#2c7bb6'] }] },
+        data: {
+          labels: Object.keys(jangkauan),
+          datasets: [{
+            data: Object.values(jangkauan),
+            backgroundColor: ['#2c7bb6', '#00a651', '#fdae61', '#d7191c']
+          }]
+        },
         options: { responsive: true, plugins: { title: { display: true, text: 'Jangkauan Operasi Kerja Alumni' } } }
       });
     }
 
-    // Muat PapaParse - TANPA SPASI
+    // Muat PapaParse
     if (typeof Papa === 'undefined') {
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js  ';
       script.onload = () => {
         console.log("PapaParse dimuat");
         loadData();

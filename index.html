@@ -90,7 +90,7 @@
     }
   </style>
 
-  <!-- Libraries -->
+  <!-- Libraries - TANPA SPASI -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -130,10 +130,9 @@
   </div>
 
   <script>
-    // 🔗 URL Proxy Google Apps Script Anda
+    // ✅ URL TANPA SPASI
     const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwO547tvmw7IAFHeOIShYMDYc-oums30SCWy_e2o0Uqmst0tJG5uwdBcfZ4DnERMehe/exec';
 
-    // 🌍 Koordinat kota
     const kotaKoordinat = {
       "Jakarta": [-6.2088, 106.8456],
       "Bandung": [-6.9175, 107.6191],
@@ -149,7 +148,6 @@
     let chartStatus, chartTahun;
     let map;
 
-    // Konversi "6 bulan" → 6
     function parseBulan(value) {
       if (!value) return 0;
       const match = value.toString().match(/(\d+)/);
@@ -218,7 +216,6 @@
     }
 
     function renderCharts() {
-      // Distribusi Status
       const statusCounts = data.reduce((acc, r) => {
         acc[r.status] = (acc[r.status] || 0) + 1;
         return acc;
@@ -238,7 +235,6 @@
         options: { responsive: true, plugins: { title: { display: true, text: 'Distribusi Status Alumni' } } }
       });
 
-      // Alumni per Tahun Lulus
       const tahunCounts = data.reduce((acc, r) => {
         acc[r.tahunLulus] = (acc[r.tahunLulus] || 0) + 1;
         return acc;
@@ -278,17 +274,16 @@
       });
     }
 
-    // Muat PapaParse
     if (typeof Papa === 'undefined') {
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js'; // ✅ Tanpa spasi
       script.onload = () => {
         console.log("PapaParse dimuat");
         loadData();
       };
       script.onerror = () => {
-        errorDiv.innerHTML = "❌ Gagal memuat PapaParse. Cek koneksi.";
-        errorDiv.style.display = 'block';
+        document.getElementById('error').innerHTML = "❌ Gagal memuat PapaParse. Cek koneksi.";
+        document.getElementById('error').style.display = 'block';
       };
       document.head.appendChild(script);
     } else {
